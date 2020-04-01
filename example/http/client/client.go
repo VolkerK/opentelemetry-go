@@ -23,30 +23,37 @@ import (
 	"net/http"
 	"time"
 
+	"go.opentelemetry.io/otel/api/core"
 	"go.opentelemetry.io/otel/api/correlation"
 	"go.opentelemetry.io/otel/api/global"
 	"go.opentelemetry.io/otel/api/key"
-	"go.opentelemetry.io/otel/exporters/trace/stdout"
+	"go.opentelemetry.io/otel/exporters/trace/jaeger"
 	"go.opentelemetry.io/otel/plugin/httptrace"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 )
 
-func initTracer() {
-	// Create stdout exporter to be able to retrieve
-	// the collected spans.
-	exporter, err := stdout.NewExporter(stdout.Options{PrettyPrint: true})
+// initTracer creates a new trace provider instance and registers it as global trace provider.
+func initTracer() func() {
+	// Create and install Jaeger export pipeline
+	_, flush, err := jaeger.NewExportPipeline(
+		jaeger.WithCollectorEndpoint("http://localhost:14268/api/traces"),
+		jaeger.WithProcess(jaeger.Process{
+			ServiceName: "trace-demo-client",
+			Tags: []core.KeyValue{
+				key.String("key1", "val1"),
+				key.Float64("float", 312.23),
+			},
+		}),
+		jaeger.RegisterAsGlobal(),
+		jaeger.WithSDK(&sdktrace.Config{DefaultSampler: sdktrace.AlwaysSample()}),
+	)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	// For the demonstration, use sdktrace.AlwaysSample sampler to sample all traces.
-	// In a production application, use sdktrace.ProbabilitySampler with a desired probability.
-	tp, err := sdktrace.NewProvider(sdktrace.WithConfig(sdktrace.Config{DefaultSampler: sdktrace.AlwaysSample()}),
-		sdktrace.WithSyncer(exporter))
-	if err != nil {
-		log.Fatal(err)
+	return func() {
+		flush()
 	}
-	global.SetTraceProvider(tp)
 }
 
 func main() {
