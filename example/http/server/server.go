@@ -20,12 +20,9 @@ import (
 	"net/http"
 
 	"go.opentelemetry.io/otel/api/core"
-	"go.opentelemetry.io/otel/api/correlation"
-	"go.opentelemetry.io/otel/api/global"
 	"go.opentelemetry.io/otel/api/key"
-	"go.opentelemetry.io/otel/api/trace"
 	"go.opentelemetry.io/otel/exporters/trace/jaeger"
-	"go.opentelemetry.io/otel/plugin/httptrace"
+	"go.opentelemetry.io/otel/plugin/othttp"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 )
 
@@ -56,30 +53,17 @@ func initTracer() func() {
 func main() {
 	fn := initTracer()
 	defer fn()
-	tr := global.Tracer("example/server")
 
-	helloHandler := func(w http.ResponseWriter, req *http.Request) {
-		attrs, entries, spanCtx := httptrace.Extract(req.Context(), req)
+	mux := http.NewServeMux()
+	tracingHandler := othttp.NewHandler(mux, "my-server")
 
-		req = req.WithContext(correlation.ContextWithMap(req.Context(), correlation.NewMap(correlation.MapUpdate{
-			MultiKV: entries,
-		})))
-
-		ctx, span := tr.Start(
-			trace.ContextWithRemoteSpanContext(req.Context(), spanCtx),
-			"hello",
-			trace.WithAttributes(attrs...),
-		)
-		defer span.End()
-
-		span.AddEvent(ctx, "handling this...")
-
-		_, _ = io.WriteString(w, "Hello, world!\n")
-	}
-
-	http.HandleFunc("/hello", helloHandler)
-	err := http.ListenAndServe(":7777", nil)
+	mux.HandleFunc("/hello", helloWorld)
+	err := http.ListenAndServe(":7777", tracingHandler)
 	if err != nil {
 		panic(err)
 	}
+}
+
+func helloWorld(w http.ResponseWriter, r *http.Request) {
+	_, _ = io.WriteString(w, "Hello, world!\n")
 }

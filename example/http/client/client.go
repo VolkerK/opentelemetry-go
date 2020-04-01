@@ -74,7 +74,7 @@ func main() {
 			req, _ := http.NewRequest("GET", "http://localhost:7777/hello", nil)
 
 			// This is for detailed tracing of http
-			ctx, req = httptrace.W3C(ctx, req)
+			// ctx, req = httptrace.W3C(ctx, req)
 
 			httptrace.Inject(ctx, req)
 
