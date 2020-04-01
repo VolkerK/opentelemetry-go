@@ -57,7 +57,8 @@ func initTracer() func() {
 }
 
 func main() {
-	initTracer()
+	fn := initTracer()
+	defer fn()
 
 	client := http.DefaultClient
 	ctx := correlation.NewContext(context.Background(),

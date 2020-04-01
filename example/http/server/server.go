@@ -54,7 +54,8 @@ func initTracer() func() {
 }
 
 func main() {
-	initTracer()
+	fn := initTracer()
+	defer fn()
 	tr := global.Tracer("example/server")
 
 	helloHandler := func(w http.ResponseWriter, req *http.Request) {
