@@ -61,6 +61,7 @@ func main() {
 	defer fn()
 
 	client := http.DefaultClient
+	// Where does the map in the context show up in jaeger ? Can't find it.
 	ctx := correlation.NewContext(context.Background(),
 		key.String("username", "donuts"),
 	)
@@ -72,7 +73,9 @@ func main() {
 		func(ctx context.Context) error {
 			req, _ := http.NewRequest("GET", "http://localhost:7777/hello", nil)
 
+			// This is for detailed tracing of http
 			ctx, req = httptrace.W3C(ctx, req)
+
 			httptrace.Inject(ctx, req)
 
 			fmt.Printf("Sending request...\n")
